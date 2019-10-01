@@ -24,7 +24,7 @@ func main() {
 	}
 
 	bodyString := string(body)
-	cheatsheetURL := burpURL + findTheCheatSheetChunk(bodyString)
+	cheatsheetURL := burpURL + findTheCheatSheet(bodyString)
 	loadedJavaScript := loadJavaScriptSheet(cheatsheetURL)
 	payloadObjects := extractPayloadsFromJavaScript(loadedJavaScript)
 	cleanPayloads := cleanUpPayloads(payloadObjects)
@@ -32,7 +32,7 @@ func main() {
 	saveToFile(cleanPayloads)
 }
 
-func findTheCheatSheetChunk(data string) string {
+func findTheCheatSheet(data string) string {
 	cheatsheetRE := regexp.MustCompile(`<script.*?src=".*cheat-sheet(.*?)"></script>`)
 
 	// we should only really have ONE finding here, SHOULD only have one anyway.
