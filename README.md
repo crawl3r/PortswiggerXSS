@@ -7,3 +7,9 @@ Just build or run the script as is, no args needed. The rest should be handled f
   
 Disclaimer: Not the cleanest code but it works :)  
 Cheatsheet: https://portswigger.net/web-security/cross-site-scripting/cheat-sheet
+
+Added parameters:
+-tag for tag filtering
+-event for event filtering
+-filename for setting the name of the filtered list
+-update to force update (it wont update if there is an existing payload file)
