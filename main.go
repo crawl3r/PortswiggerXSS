@@ -1,25 +1,34 @@
+/*
+	Go script to generate a wordlist from PortSwigger's XSS cheatsheet.
+	Created by Gary / Crawl3r
+	Thanks to ArenasDev for adding filtering and PortSwigger for creating their amazing material!
+
+	TODO: Scrape the extra payloads that have been contributed to the cheatsheet from others
+	Add a sig somewhere to auto update if the contents changes? Timestamp or something?
+*/
+
 package main
 
 import (
+	"bufio"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"regexp"
 	"strings"
-	"flag"
-	"bufio"
 )
 
 var burpURL = "https://portswigger.net"
 
 //vars for params
 var (
-  	tag string
-  	event string
-	update bool
+	tag      string
+	event    string
+	update   bool
 	filename string
-	final []string
+	final    []string
 )
 
 func main() {
@@ -31,55 +40,58 @@ func main() {
 	flag.Parse()
 
 	_, err := os.Stat("payloads.txt")
-	if (update || os.IsNotExist(err)) {
+	if update || os.IsNotExist(err) {
 		downloadPayloadFile()
 	}
 
-
-	filter()
+	// lets add a check here before we filter, otherwise we never need to call it
+	if tag != "" || event != "" {
+		filter()
+	}
 }
 
+// thank you to ArenasDev for adding filtering.
 func filter() {
 	var check = false
 	file, err := os.Open("payloads.txt")
 	if err != nil {
-	    fmt.Println(err)
+		fmt.Println(err)
 	}
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-	    line := scanner.Text()
-	    if tag != "" {
-	    	if event != "" {
-	    		if strings.HasPrefix(line, "<" + tag + " ") && strings.Contains(line, " " + event) {
-	    			check = true
-	    		}
-	    	} else {
-	    		if strings.HasPrefix(line, "<" + tag + " ") {
-	    			check = true
-	    		}
-	    	}
-	    } else {
-	    	if event != "" {
-	    		if strings.Contains(line, " " + event) {
-	    			check = true
-	    		}
-	   	 	}
-	    }
-	    
+		line := scanner.Text()
+		if tag != "" {
+			if event != "" {
+				if strings.HasPrefix(line, "<"+tag+" ") && strings.Contains(line, " "+event) {
+					check = true
+				}
+			} else {
+				if strings.HasPrefix(line, "<"+tag+" ") {
+					check = true
+				}
+			}
+		} else {
+			if event != "" {
+				if strings.Contains(line, " "+event) {
+					check = true
+				}
+			}
+		}
+
 		if check {
 			final = append(final, line)
-	    	check = false
+			check = false
 		}
 	}
 
 	saveToFile(final, filename)
 
 	if err := scanner.Err(); err != nil {
-	    fmt.Println(err)
+		fmt.Println(err)
 	}
-	
+
 }
 
 func downloadPayloadFile() {
@@ -103,8 +115,6 @@ func downloadPayloadFile() {
 	saveToFile(cleanPayloads, "payloads.txt")
 }
 
-
-
 func findTheCheatSheet(data string) string {
 	cheatsheetRE := regexp.MustCompile(`<script.*?src=".*cheat-sheet(.*?)"></script>`)
 
@@ -116,6 +126,7 @@ func findTheCheatSheet(data string) string {
 	}
 
 	// should be: <script async src="/bundles/public/staticcms/cross-site-scripting/cheat-sheet?v=iCuH1TwKKrx4GksM_6XOxyiRVGGmigVzmiT-BSNo7981"></script>
+	// should hopefully find up to date cheatsheets as long as PS keep the same url/name convention
 	return strings.Split(cheatsheetURL[0][0], "\"")[1]
 }
 
