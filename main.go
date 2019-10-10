@@ -7,11 +7,82 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"flag"
+	"bufio"
 )
 
 var burpURL = "https://portswigger.net"
 
+//vars for params
+var (
+  	tag string
+  	event string
+	update bool
+	filename string
+	final []string
+)
+
 func main() {
+	flag.StringVar(&tag, "tag", "", "tag to filter by")
+	flag.StringVar(&event, "event", "", "event to filter by")
+	flag.BoolVar(&update, "update", false, "update the payloads file")
+	flag.StringVar(&filename, "file", "final.txt", "file name for the filtered payload text file")
+
+	flag.Parse()
+
+	_, err := os.Stat("payloads.txt")
+	if (update || os.IsNotExist(err)) {
+		downloadPayloadFile()
+	}
+
+
+	filter()
+}
+
+func filter() {
+	var check = false
+	file, err := os.Open("payloads.txt")
+	if err != nil {
+	    fmt.Println(err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+	    line := scanner.Text()
+	    if tag != "" {
+	    	if event != "" {
+	    		if strings.HasPrefix(line, "<" + tag + " ") && strings.Contains(line, " " + event) {
+	    			check = true
+	    		}
+	    	} else {
+	    		if strings.HasPrefix(line, "<" + tag + " ") {
+	    			check = true
+	    		}
+	    	}
+	    } else {
+	    	if event != "" {
+	    		if strings.Contains(line, " " + event) {
+	    			check = true
+	    		}
+	   	 	}
+	    }
+	    
+		if check {
+			final = append(final, line)
+	    	check = false
+		}
+	}
+
+	saveToFile(final, filename)
+
+	if err := scanner.Err(); err != nil {
+	    fmt.Println(err)
+	}
+	
+}
+
+func downloadPayloadFile() {
 	resp, err := http.Get("https://portswigger.net/web-security/cross-site-scripting/cheat-sheet")
 	if err != nil {
 		fmt.Println("ERRORED:", err)
@@ -29,8 +100,10 @@ func main() {
 	payloadObjects := extractPayloadsFromJavaScript(loadedJavaScript)
 	cleanPayloads := cleanUpPayloads(payloadObjects)
 	fmt.Println("Saving to file.")
-	saveToFile(cleanPayloads)
+	saveToFile(cleanPayloads, "payloads.txt")
 }
+
+
 
 func findTheCheatSheet(data string) string {
 	cheatsheetRE := regexp.MustCompile(`<script.*?src=".*cheat-sheet(.*?)"></script>`)
@@ -83,8 +156,8 @@ func cleanUpPayloads(data [][]string) []string {
 	return allPayloads
 }
 
-func saveToFile(list []string) {
-	f, err := os.Create("payloads.txt")
+func saveToFile(list []string, filename string) {
+	f, err := os.Create(filename)
 	if err != nil {
 		fmt.Println("Could not create file, does it already exist?")
 	}
